@@ -1,0 +1,43 @@
+---
+title: "Spotify Data Analysis"
+author: 
+- "Mencius Qin, Rachel Hyeon"
+- 'Style Guide: tidyverse style guide'
+output:
+  pdf_document:
+    toc: yes
+  html_document:
+    code_folding: show
+    toc: yes
+    toc_float: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Abstract:
+
+
+
+# Introduction:
+
+
+
+# Data:
+
+
+
+# Methods:
+
+
+
+# Results:
+
+
+
+# Discussion:
+
+
