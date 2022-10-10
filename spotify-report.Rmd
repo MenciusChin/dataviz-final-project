@@ -40,15 +40,6 @@ spotify <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesd
 # Data:
 
 
-```{r corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix"}
-spotify_cor <- cor(spotify[, -c(1:3, 5:11)], method = "pearson")
-
-corrplot::corrplot(spotify_cor, type = "upper", order = "hclust", 
-         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
-```
-
-As we see in the correlation matrix, the `energy:loudness` pair and `energy:acousticness` pair seems to be correlated, following by the `loudness:acousticness` pair and `danceability:valence` pair.
-
 ```{r genre-popularity}
 # Graph code
 genre_ridgeline <- spotify %>%
@@ -100,6 +91,8 @@ plot(bar_100)
 
 # Results:
 
+## Question 1: What is the effect of quantitative variables explaining song characteristics on track popularity?
+
 ```{r pca-analysis, include=FALSE}
 spotify_quant <- spotify[, c(4, 12:13, 15, 17:23)]
 
@@ -149,14 +142,7 @@ fviz_pca_biplot(spotify_pca,
    theme(legend.position = "bottom")
 ```
 
-```{r corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix", include=FALSE}
-spotify_cor <- cor(spotify[, -c(1:3, 5:11)], method = "pearson")
-
-corrplot::corrplot(spotify_cor, type = "upper", order = "hclust", 
-         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
-```
-
-For the first question, "What is the effect of quantitative variables explaining song characteristics (`danceability`, `energy`, `key`, `loudness`, `mode`, `speechiness`, `acousticness`, `instrumentalness`, `liveness`, `valence`, `tempo`, `duration_ms`) on track popularity?", a PCA analysis was performed on the quantitative variables (song characteristics), even though the scree plot indicated that up to PC3 is good enough for explaining the dimensions, the biplot and scatterplot embedded `track_popularity` is too chaotic to observe any sign between the variables. \
+For the first question, a PCA analysis was performed on the quantitative variables (song characteristics), even though the scree plot indicated that up to PC3 is good enough for explaining the dimensions, the biplot and scatterplot embedded `track_popularity` is too chaotic to observe any sign between the variables. \
 Thus a PCA analysis of smaller scale (selected by `playlist_genre`) was performed and `pop` and `r&b` were selected for the analysis. For `r&b`:
 
 ```{r rnb-pca-analysis, include=FALSE}
@@ -175,7 +161,7 @@ fviz_eig(rnb_pca, addlabels = TRUE, ncp = 10) +
              linetype = "dashed", color = "red")
 ```
 
-```{r pop-pca, include=FALSE}
+```{r rnb-pca, include=FALSE}
 rnb_pc_matrix <- rnb_pca$x
 
 rnb_pca_df <- spotify[spotify$playlist_genre == "r&b",] %>% 
@@ -191,7 +177,7 @@ rnb_pca <- rnb_pca_df %>%
 plot(rnb_pca)
 ```
 
-```{r pop-biplot, include=FALSE}
+```{r rnb-biplot, include=FALSE}
 fviz_pca_biplot(rnb_pca,
                 # Plot PC1 and PC3
                 axes = c(1, 2), label = "var",
@@ -210,14 +196,38 @@ fviz_pca_biplot(rnb_pca,
    theme(legend.position = "bottom")
 ```
 
+It turned out to be the same thing, as analysis on the other genres also indicated. Thus it seemed like that the popularity of the song can not be simply determined by a few variables representing the characteristics of the song (individually). 
+
+
+## Question 4: Are there correlations or collinearity between variables?
+
+```{r corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix", include=FALSE}
+spotify_cor <- cor(spotify[, -c(1:3, 5:11)], method = "pearson")
+
+corrplot::corrplot(spotify_cor, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
+```
+
+Observed from the correlogram, there exists some pairs of variables with high correlations: `energy:loudness` are positively correlated, `energy:acousticness` are negatively correlated; following by `danceability:valence` and `loudness:acousticness` which are slightly less correlated but the relationship are still significant. However, the relationship between variables are based on the scale of entire dataset, which there might be a big difference for the relationship of song characteristics between different genres. Thus two specific genres were also selected and the correlogram were below: 
+
 ```{r rnb-corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix for RnB songs", include=FALSE}
-rnb_cor <- cor(rnb_quant, method = "pearson")
+rnb_cor <- cor(spotify[spotify$playlist_genre == "r&b", -c(1:3, 5:11)],
+               method = "pearson")
 
 corrplot::corrplot(rnb_cor, type = "upper", order = "hclust", 
          tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
 ```
 
-It turned out to be the same thing, as analysis on the other genres also indicated. Thus it seemed like that the popularity of the song can not be simply determined by a few variables representing the characteristics of the song (individually). 
+```{r pop-corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix for Pop songs", include=FALSE}
+pop_cor <- cor(spotify[spotify$playlist_genre == "pop", -c(1:3, 5:11)],
+               method = "pearson")
+
+corrplot::corrplot(pop_cor, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
+```
+
+As the correlograms suggested, the pairs of variables/characteristic of the song that are correlated for different genres are very different. This is indicating the variables are representing different context under different genre.
+
 
 # Discussion:
 
