@@ -11,7 +11,7 @@ output:
     toc: yes
     toc_float: yes
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -38,6 +38,459 @@ spotify <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesd
 
 
 # Data:
+
+```{r gg-pairs}
+spotify %>% ggpairs(columns = 12:23,
+                    mapping = aes(alpha = .5),
+                    progress = FALSE)
+```
+
+```{r cor}
+spotify_cor <- cor(spotify[, -c(1:3, 5:11)], method = "pearson")
+```
+
+```{r, fig.height=7, fig.width=7, fig.cap="Correlation matrix"}
+corrplot::corrplot(spotify_cor, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 1.2)
+```
+
+As we see in the correlation matrix, the `energy:loudness` pair and `energy:acousticness` pair seems to be correlated, following by the `loudness:acousticness` pair and `danceability:valence` pair.
+
+```{r quant1}
+spotify_quant1 <- spotify %>%
+  select(c(track_popularity, danceability:duration_ms))
+
+spotify_quant1 <- spotify_quant1[complete.cases(spotify_quant1), ]
+```
+
+Plot histogram curves for each graph, did not plot some of the graphs because they seem to have no variance (i.e. danceability, energy, etc.)
+```{r histograms}
+# Scott's rule
+get_scotts_binwidth <- function(x) {
+  # the standard deviation is
+  sigma <- sd(x)
+  # number of observations
+  n <- length(x)
+  # thus, the binwidth is
+  h <- (3.49 * sigma) / (n^(1 / 3))
+  return(h)
+}
+
+scotts_plot_tp <- spotify_quant1 %>%
+  ggplot(aes(x = track_popularity)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$track_popularity)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Track Popularity",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_dance <- spotify_quant1 %>%
+  ggplot(aes(x = danceability)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$danceability)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Danceability",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_energy <- spotify_quant1 %>%
+  ggplot(aes(x = energy)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$energy)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Energy",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_key <- spotify_quant1 %>%
+  ggplot(aes(x = key)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$key)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Key",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_loudness <- spotify_quant1 %>%
+  ggplot(aes(x = loudness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$loudness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Loudness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_mode <- spotify_quant1 %>%
+  ggplot(aes(x = mode)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$mode)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Mode",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_speechiness <- spotify_quant1 %>%
+  ggplot(aes(x = speechiness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$speechiness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Speechiness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_acousticness <- spotify_quant1 %>%
+  ggplot(aes(x = acousticness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$acousticness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Acousticness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_inst <- spotify_quant1 %>%
+  ggplot(aes(x = instrumentalness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$instrumentalness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Instrumentalness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_live <- spotify_quant1 %>%
+  ggplot(aes(x = liveness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$liveness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Liveness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_valence <- spotify_quant1 %>%
+  ggplot(aes(x = valence)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$valence)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Valence",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_tempo <- spotify_quant1 %>%
+  ggplot(aes(x = tempo)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$tempo)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Tempo",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_duration <- spotify_quant1 %>%
+  ggplot(aes(x = duration_ms)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$duration_ms)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Duration in ms",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+library(patchwork)
+scotts_plot_tp
+scotts_plot_dance + scotts_plot_energy + scotts_plot_key + scotts_plot_loudness
+scotts_plot_mode + scotts_plot_speechiness + scotts_plot_acousticness + scotts_plot_inst
+scotts_plot_live + scotts_plot_valence + scotts_plot_tempo + scotts_plot_duration
+```
+
+From the histogram, it looks like key and mode are categorical variables. Danceability, energy, loudness looks left-skewed, and liveness, duration_ms, speechiness, acousticness, instrumentalness looks right-skewed.
+
+From the correlogram, it seemed like energy and loudness has a strong positive correlation, and energy and acousticness has a strong negative correlation. Therefore, I will plot a scatterplot of the two pairs and draw a linear regression line for it to see the degree of correlation.
+
+```{r scatterplots}
+spotify %>%
+  # Scatter plot of height vs year
+  ggplot(aes(
+    x = energy,
+    y = loudness
+  )) +
+  geom_point(alpha = 0.1) +
+  # Display linear trend
+  geom_smooth(method = "lm", level = 0.99) +
+  # Add labels
+  labs(
+    x = "Energy",
+    y = "Loudness",
+    title = "Scatterplot of loudness and energy with linear trend for 99% confidence interval",
+    subtitle = "Increasing linear relationship between loudness and energy"
+  )
+
+spotify %>%
+  # Scatter plot of height vs year
+  ggplot(aes(
+    x = acousticness,
+    y = energy
+  )) +
+  geom_point(alpha = 0.1) +
+  # Display linear trend
+  geom_smooth(method = "lm", level = 0.99) +
+  # Add labels
+  labs(
+    x = "Energy",
+    y = "Acousticness",
+    title = "Scatterplot of acousticness and energy with linear trend for 99% confidence interval",
+    subtitle = "Decreasing linear relationship between acousticness and energy"
+  )
+```
+
+For a given genre, it seems like danceability and speechiness are the two factors that differ between the genres. (Maybe plot a bar plot plotting danceability and speechiness for genres). We will plot a scatterplot with contour lines for danceability and speechiness.
+
+```{r}
+spotify %>%
+  ggplot(aes(
+    x = danceability,
+    y = speechiness
+  )) +
+  geom_point(
+    alpha = 0.25,
+    aes(
+      color = playlist_genre
+    )
+  ) +
+  geom_density2d(h = c(80, 80)) +
+  scale_x_continuous(limits=c(0, 1)) +
+  scale_y_continuous(limits=c(0, 1)) +
+  coord_fixed() +
+  theme_bw() +
+  labs(
+    x = "Danceability",
+    y = "Speechiness",
+    title = "Scatterplot of Danceability and \n Speechiness with Contour Lines",
+    subtitle = "Genre separated by shape"
+  )
+```
+
+There is one mode in the graph where most of the data points are located, which suggests that most songs have danceability in between 0.5 to 0.75 regardless of genre and speechiness from 0 to 0.25. There are some rap songs with high speechiness from 0.5 to close to 1
+
+```{r spotify-100}
+spotify_100 <- spotify %>% 
+  arrange(-track_popularity) %>% 
+  top_n(100, track_popularity) # Shouldn't this be top 100 not 150?
+```
+
+```{r genre-100}
+bar_100 <- spotify_100 %>% 
+  ggplot(aes(x = playlist_genre, fill = playlist_subgenre)) +
+  geom_bar()
+
+plot(bar_100)
+```
+
+For top 100 songs, we will plot a bar graph displaying marginal distribution of genre with confidence intervals. We will use Bonferroni correction to calculate the confidence intervals. We will also perform a chi-squared test to see if the proportions of genre are equal for top 100 songs.
+
+```{r marginal-dist-ci}
+# Calculate the Z value using Bonferroni correction
+k <- 120
+bonferroni_alpha <- 0.05 / k
+z <- qnorm(1 - bonferroni_alpha / 2)
+
+spotify_100 %>%
+  group_by(playlist_genre) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  # Calculate proportions, standard error, lower and
+  # upper bounds of confidence interval
+  mutate(
+    total = sum(count),
+    prop = count / total,
+    se = sqrt(prop * (1 - prop) / total),
+    lower = prop - z * se,
+    upper = prop + z * se
+  ) %>%
+  ggplot(aes(x = fct_reorder(playlist_genre, prop))) +
+  geom_bar(aes(y = prop),
+    stat = "identity"
+  ) +
+  # Add confidence intervals and make them a different color
+  geom_errorbar(aes(
+    ymin = pmax(lower, 0),
+    ymax = pmin(upper, 1),
+    color = "red"
+  )) +
+  # Add labels
+  labs(
+    x = "Genre",
+    y = "Proportion",
+    title = "Marginal Distribution of Genre for Top 100 Songs on Spotify"
+  ) +
+  theme(legend.position = "")
+```
+
+Rock and r&b, pop, and latin does not overlap. This means that the proportion of rock and r&b, rock and pop, and rock and latin are different. Other proportions might be the same. We will perform the chi-squared test to see if the proportions of genre in top 100 songs are equal.
+
+```{r chisq-genre}
+chisq.test(table(spotify_100$playlist_genre))
+```
+
+Since X-squared is 47.7 and the corresponding p-value is very small (less than 0.05), we reject the null hypothesis that the proportion of playlist genres represented in top 100 spotify songs by popularity are equal.
+
+
+```{r genre-popularity}
+# Graph code
+genre_ridgeline <- spotify %>%
+  ggplot(aes(x = track_popularity, 
+             y = playlist_genre,
+             height = stat(density),
+             fill = playlist_genre)) +
+  geom_density_ridges(stat = "density") +
+  theme_bw() +
+  labs(x = "Popularity of the Song", y = "Genre",
+       title = "Ridgeline plot of Song Popularity of different Genre
+               (All Genre contains a mode of low popularity)")
+
+plot(genre_ridgeline)
+```
+
+
+```{r pca-analysis}
+spotify_quant <- spotify[, c(4, 12:13, 15, 17:23)]
+
+spotify_pca <- prcomp(dplyr::select(spotify_quant, danceability:duration_ms),
+                     center = TRUE, scale. = TRUE)
+summary(spotify_pca)
+```
+
+
+```{r scree-plot}
+fviz_eig(spotify_pca, addlabels = TRUE, ncp = 10) +
+  geom_hline(yintercept = 100 * (1 / ncol(spotify_pca$x)), 
+             linetype = "dashed", color = "red")
+```
+
+
+```{r pop-pca}
+spotify_pc_matrix <- spotify_pca$x
+
+pop_pca_df <- spotify %>% 
+  mutate(pc1 = spotify_pc_matrix[,1], pc2 = spotify_pc_matrix[,2])
+pop_pca <- pop_pca_df %>%
+  ggplot(aes(x = pc1, y = pc2)) +
+  geom_point(aes(color = track_popularity), alpha = 0.5) +
+  scale_colour_gradient(low = "white", high = "orange") +
+  theme_bw() +
+  labs(x = "PC 1", y = "PC 2", color = "Track Popularity")
+
+plot(pop_pca)
+```
+
+
+```{r pop-biplot}
+fviz_pca_biplot(spotify_pca,
+                # Plot PC1 and PC3
+                axes = c(1, 2), label = "var",
+                # Change the alpha for the observations - 
+                # which is represented by ind
+                alpha.ind = .25,
+                # Modify the alpha for the variables (var):
+                alpha.var = .5,
+                repel = TRUE,
+                # Set the color of the points to decades variable:
+                col.ind = pop_pca_df$track_popularity, 
+                # Modify the color of the variables
+                col.var = "darkblue") +
+   scale_color_gradient(low = "white", high = "darkorange") +
+   labs(color = "Track Popularity") +
+   theme(legend.position = "bottom")
+```
+
+
+```{r pop-heat}
+pop_heat <- spotify %>% 
+  ggplot(aes(x = loudness, y = instrumentalness)) +
+  stat_density2d(geom = "tile", contour = FALSE) +
+  geom_point(aes(color = track_popularity), alpha = .2) + 
+  scale_color_gradient(low = "lightblue", high = "orange") +
+  theme_bw() + 
+  labs(title = "Heat Map")
+
+plot(pop_heat)
+```
+
+
 
 
 ```{r genre-popularity}
