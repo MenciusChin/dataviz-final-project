@@ -70,19 +70,7 @@ pop_heat <- spotify %>%
 plot(pop_heat)
 ```
 
-```{r spotify-100}
-spotify_100 <- spotify %>% 
-  arrange(-track_popularity) %>% 
-  top_n(150, track_popularity)
-```
 
-```{r genre-100}
-bar_100 <- spotify_100 %>% 
-  ggplot(aes(x = playlist_genre, fill = playlist_subgenre)) +
-  geom_bar(position = "dodge")
-
-plot(bar_100)
-```
 
 
 # Methods:
@@ -198,6 +186,23 @@ fviz_pca_biplot(rnb_pca,
 
 It turned out to be the same thing, as analysis on the other genres also indicated. Thus it seemed like that the popularity of the song can not be simply determined by a few variables representing the characteristics of the song (individually). 
 
+## Question 2: What song characteristics does a given genre have?
+
+## Question 3: What characteristics do top 100 songs in terms of popularity have?
+
+```{r spotify-100}
+spotify_100 <- spotify %>% 
+  arrange(-track_popularity) %>% 
+  top_n(150, track_popularity)
+```
+
+```{r genre-100}
+bar_100 <- spotify_100 %>% 
+  ggplot(aes(x = playlist_genre, fill = playlist_subgenre)) +
+  geom_bar(position = "dodge")
+
+plot(bar_100)
+```
 
 ## Question 4: Are there correlations or collinearity between variables?
 
