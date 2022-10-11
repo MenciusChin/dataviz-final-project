@@ -187,7 +187,6 @@ fviz_pca_biplot(rnb_pca,
 It turned out to be the same thing, as analysis on the other genres also indicated. Thus it seemed like that the popularity of the song can not be simply determined by a few variables representing the characteristics of the song (individually). 
 
 ## Question 2: What song characteristics does a given genre have?
-
 ## Question 3: What characteristics do top 100 songs in terms of popularity have?
 
 ```{r spotify-100}
@@ -236,4 +235,6 @@ As the correlograms suggested, the pairs of variables/characteristic of the song
 
 # Discussion:
 
+The PCA analysis performed on the entire spotify dataset wasn't showing a clear relationship between the characteristics variables and the track popularity, thus the later studies went further into selected genres. A more complex regression analysis could be performed on the dataset to gain further understanding the explainability of characteristics of the songs on the track popularity. If the regression analysis went succeed, we might be able to provide service for creator and companies understand the trend or the popularity of the songs thus they could create and upload better content and make profit. The scale would be more focused within each genre, since a generalized "popular" song is hard to predict but for a specific genre it would be more sensible and feasible.
 
+For future plans, since patterns of characteristics were observed within genres, if user data could be included a recommendation system would be a good next step plan. The recommendation could be applied to the radio when music app user is listening to the music, recommending a better next song; or it made life easy when new songs are uploaded by the creators, we
