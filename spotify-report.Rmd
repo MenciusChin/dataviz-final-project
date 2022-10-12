@@ -39,22 +39,7 @@ spotify <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesd
 
 # Data:
 
-```{r gg-pairs}
-spotify %>% ggpairs(columns = 12:15,
-                    mapping = aes(alpha = .5),
-                    progress = FALSE)
-```
-
-```{r cor}
-spotify_cor <- cor(spotify[, -c(1:3, 5:11)], method = "pearson")
-```
-
-```{r, fig.height=7, fig.width=7, fig.cap="Correlation matrix"}
-corrplot::corrplot(spotify_cor, type = "upper", order = "hclust", 
-         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 1.2)
-```
-
-As we see in the correlation matrix, the `energy:loudness` pair and `energy:acousticness` pair seems to be correlated, following by the `loudness:acousticness` pair and `danceability:valence` pair.
+## Q1
 
 ```{r quant1}
 spotify_quant1 <- spotify %>%
@@ -63,7 +48,6 @@ spotify_quant1 <- spotify %>%
 spotify_quant1 <- spotify_quant1[complete.cases(spotify_quant1), ]
 ```
 
-Plot histogram curves for each graph, did not plot some of the graphs because they seem to have no variance (i.e. danceability, energy, etc.)
 ```{r histograms}
 # Scott's rule
 get_scotts_binwidth <- function(x) {
@@ -280,44 +264,6 @@ scotts_plot_live + scotts_plot_valence + scotts_plot_tempo + scotts_plot_duratio
 
 From the histogram, it looks like key and mode are categorical variables. Danceability, energy, loudness looks left-skewed, and liveness, duration_ms, speechiness, acousticness, instrumentalness looks right-skewed.
 
-From the correlogram, it seemed like energy and loudness has a strong positive correlation, and energy and acousticness has a strong negative correlation. Therefore, I will plot a scatterplot of the two pairs and draw a linear regression line for it to see the degree of correlation.
-
-```{r scatterplots}
-spotify %>%
-  # Scatter plot of height vs year
-  ggplot(aes(
-    x = energy,
-    y = loudness
-  )) +
-  geom_point(alpha = 0.1) +
-  # Display linear trend
-  geom_smooth(method = "lm", level = 0.99) +
-  # Add labels
-  labs(
-    x = "Energy",
-    y = "Loudness",
-    title = "Scatterplot of loudness and energy with linear trend for 99% confidence interval",
-    subtitle = "Increasing linear relationship between loudness and energy"
-  )
-
-spotify %>%
-  # Scatter plot of height vs year
-  ggplot(aes(
-    x = acousticness,
-    y = energy
-  )) +
-  geom_point(alpha = 0.1) +
-  # Display linear trend
-  geom_smooth(method = "lm", level = 0.99) +
-  # Add labels
-  labs(
-    x = "Energy",
-    y = "Acousticness",
-    title = "Scatterplot of acousticness and energy with linear trend for 99% confidence interval",
-    subtitle = "Decreasing linear relationship between acousticness and energy"
-  )
-```
-
 For a given genre, it seems like danceability and speechiness are the two factors that differ between the genres. (Maybe plot a bar plot plotting danceability and speechiness for genres). We will plot a scatterplot with contour lines for danceability and speechiness.
 
 ```{r}
@@ -339,7 +285,77 @@ spotify %>%
 
 There is one mode in the graph where most of the data points are located, which suggests that most songs have danceability in between 0.5 to 0.75 regardless of genre and speechiness from 0 to 0.25. There are some rap songs with high speechiness from 0.5 to close to 1
 
+```{r genre-popularity}
+# Graph code
+genre_ridgeline <- spotify %>%
+  ggplot(aes(x = track_popularity, 
+             y = playlist_genre,
+             height = stat(density),
+             fill = playlist_genre)) +
+  geom_density_ridges(stat = "density") +
+  theme_bw() +
+  labs(x = "Popularity of the Song", y = "Genre",
+       title = "Ridgeline plot of Song Popularity of different Genre
+               (All Genre contains a mode of low popularity)")
+
+plot(genre_ridgeline)
+```
+
+```{r pca-analysis, include=FALSE}
+# Omit duplicating genres
+spotify_quant <- spotify %>% 
+  select(c(4, 12:13, 15, 17:23))
+  
+
+spotify_pca <- prcomp(dplyr::select(spotify_quant, danceability:duration_ms),
+                     center = TRUE, scale. = TRUE)
+```
+
+```{r scree-plot, include=FALSE}
+fviz_eig(spotify_pca, addlabels = TRUE, ncp = 10) +
+  geom_hline(yintercept = 100 * (1 / ncol(spotify_pca$x)), 
+             linetype = "dashed", color = "red")
+```
+
+```{r pop-pca, include=FALSE}
+spotify_pc_matrix <- spotify_pca$x
+
+pop_pca_df <- spotify %>% 
+  mutate(pc1 = spotify_pc_matrix[,1], pc2 = spotify_pc_matrix[,2],
+         pc3 = spotify_pc_matrix[,3], pc4 = spotify_pc_matrix[,4])
+pop_pca <- pop_pca_df %>%
+  ggplot(aes(x = pc1, y = pc2)) +
+  geom_point(aes(color = track_popularity), alpha = 0.5) +
+  scale_colour_gradient(low = "white", high = "orange") +
+  theme_bw() +
+  labs(x = "PC 1", y = "PC 2", color = "Track Popularity")
+
+plot(pop_pca)
+```
+
+```{r pop-biplot, include=FALSE}
+fviz_pca_biplot(spotify_pca,
+                # Plot PC1 and PC2
+                axes = c(1, 2), label = "var",
+                # Change the alpha for the observations - 
+                # which is represented by ind
+                alpha.ind = .25,
+                # Modify the alpha for the variables (var):
+                alpha.var = .5,
+                repel = TRUE,
+                # Set the color of the points to decades variable:
+                col.ind = pop_pca_df$track_popularity, 
+                # Modify the color of the variables
+                col.var = "darkblue") +
+   scale_color_gradient(low = "white", high = "darkorange") +
+   labs(color = "Track Popularity") +
+   theme(legend.position = "bottom")
+```
+
+## Q2
+
 ```{r spotify-100}
+# This shows the top-100 songs including duplication
 track_100 <- spotify %>% 
   arrange(-track_popularity) %>% 
   distinct(track_name, .keep_all = TRUE) %>% 
@@ -401,17 +417,11 @@ spotify_100 %>%
 
 Rock and r&b, pop, and latin does not overlap. This means that the proportion of rock and r&b, rock and pop, and rock and latin are different. Other proportions might be the same. We will perform the chi-squared test to see if the proportions of genre in top 100 songs are equal.
 
-```{r chisq-genre}
-chisq.test(table(spotify_100$playlist_genre))
-```
-
-Since X-squared is 47.7 and the corresponding p-value is very small (less than 0.05), we reject the null hypothesis that the proportion of playlist genres represented in top 100 Spotify songs by popularity are equal.
-
 ```{r rnb-100-heat}
 spotify_100[spotify_100$playlist_genre == "r&b",] %>%
   ggplot(aes(x = danceability, y = speechiness)) +
   geom_point(alpha = 0.25) +
-  geom_density2d(h = c(10, 10)) +
+  geom_density2d() +
   scale_x_continuous(limits=c(0, 1)) +
   scale_y_continuous(limits=c(0, 1)) +
   coord_fixed() +
@@ -442,7 +452,7 @@ spotify_100[spotify_100$playlist_genre == "pop",] %>%
 ```{r latin-100-heat}
 spotify_100[spotify_100$playlist_genre == "latin",] %>%
   ggplot(aes(x = danceability, y = speechiness)) +
-  geom_point(alpha = 0.25, color = "#D099E2") +
+  geom_point(alpha = 0.25) +
   geom_density2d() +
   coord_fixed() +
   theme_bw() +
@@ -454,98 +464,8 @@ spotify_100[spotify_100$playlist_genre == "latin",] %>%
   )
 ```
 
-```{r genre-popularity}
-# Graph code
-genre_ridgeline <- spotify %>%
-  ggplot(aes(x = track_popularity, 
-             y = playlist_genre,
-             height = stat(density),
-             fill = playlist_genre)) +
-  geom_density_ridges(stat = "density") +
-  theme_bw() +
-  labs(x = "Popularity of the Song", y = "Genre",
-       title = "Ridgeline plot of Song Popularity of different Genre
-               (All Genre contains a mode of low popularity)")
-
-plot(genre_ridgeline)
-```
-
-
-
-
-
-# Methods:
-
-For assessing whether the marginal distribution of `playlist_genre` are the same for the top 100 popular songs, a Chi-squared test was performed.:
-$$\chi^2 = \sum^k_{j=1}\frac{(O_j - E_j)^2}{E_j}$$
-where our null hypothesis here is that the marginal distribution of different genre are the same.
-
-# Results:
-
-## Question 1: What is the effect of quantitative variables explaining song characteristics on track popularity?
-
-```{r pca-analysis, include=FALSE}
-# Omit duplicating genres
-spotify_quant <- spotify %>% 
-  select(c(4, 12:13, 15, 17:23))
-  
-
-spotify_pca <- prcomp(dplyr::select(spotify_quant, danceability:duration_ms),
-                     center = TRUE, scale. = TRUE)
-summary(spotify_pca)
-```
-
-```{r scree-plot, include=FALSE}
-fviz_eig(spotify_pca, addlabels = TRUE, ncp = 10) +
-  geom_hline(yintercept = 100 * (1 / ncol(spotify_pca$x)), 
-             linetype = "dashed", color = "red")
-```
-
-```{r pop-pca, include=FALSE}
-spotify_pc_matrix <- spotify_pca$x
-
-pop_pca_df <- spotify %>% 
-  mutate(pc1 = spotify_pc_matrix[,1], pc2 = spotify_pc_matrix[,2],
-         pc3 = spotify_pc_matrix[,3], pc4 = spotify_pc_matrix[,4])
-pop_pca <- pop_pca_df %>%
-  ggplot(aes(x = pc1, y = pc2)) +
-  geom_point(aes(color = track_popularity), alpha = 0.5) +
-  scale_colour_gradient(low = "white", high = "orange") +
-  theme_bw() +
-  labs(x = "PC 1", y = "PC 2", color = "Track Popularity")
-
-plot(pop_pca)
-```
-
-```{r pop-biplot, include=FALSE}
-fviz_pca_biplot(spotify_pca,
-                # Plot PC1 and PC2
-                axes = c(1, 2), label = "var",
-                # Change the alpha for the observations - 
-                # which is represented by ind
-                alpha.ind = .25,
-                # Modify the alpha for the variables (var):
-                alpha.var = .5,
-                repel = TRUE,
-                # Set the color of the points to decades variable:
-                col.ind = pop_pca_df$track_popularity, 
-                # Modify the color of the variables
-                col.var = "darkblue") +
-   scale_color_gradient(low = "white", high = "darkorange") +
-   labs(color = "Track Popularity") +
-   theme(legend.position = "bottom")
-```
-
-For the first question, a PCA analysis was performed on the quantitative variables (song characteristics), even though the scree plot indicated that up to PC3 is good enough for explaining the dimensions, the biplot and the scatterplot embedded `track_popularity` is too chaotic to observe any signs or signals between the variables. Logically, the popularity wouldn't be explained simply by a few predictors individually. Thus for the later questions, the analysis will be performed on a smaller scale such as by genre or for the top 100 popular songs.
-
-## Question 2: What characteristics do top 100 songs in terms of popularity have?
-
-Based on both the graph output and the Chisq-test performed, the marginal distribution of different genre of top 100 songs are different. From the perspective of the bar graphs, as the 95\% CI indicated, since some confidence interval of genre didn't overlap, it is highly confident that the marginal distributions are also different; or from the p-value provided by Chisq-test, which is much smaller than our $\alpha = 0.05$, we will reject our null and say the marginal distributions are different.
-
-One thing interesting of the top 100 songs is that, within the Spotify dataset, it seemed like songs with higher popularity usually were tagged with more than one genre. The scatterplot of count of the unique track against the popularity of the song on the entire Spotify dataset were used to interpret the hypothesis made previously.
-
 ``` {r multi-genre}
-# This selection algorithm needs refine!
+# Selection algorithm removes duplicating songs
 multi_genre <- spotify %>% 
   group_by(track_name, track_album_name, track_artist, track_popularity) %>% 
   mutate(count = n()) %>% 
@@ -556,17 +476,17 @@ multi_genre <- spotify %>%
 genre_size <- multi_genre %>% 
   ggplot(aes(x = count, y = track_popularity)) +
   geom_smooth() +
-  geom_point(alpha = .5)
+  geom_point(alpha = .5) +
+  scale_x_continuous(limits=c(-.5, 10.5)) +
+  scale_y_continuous(limits=c(-5, 105)) +
+  labs(x = "Number of tagged Genre", y = "Popularity",
+       title = "Trend between numbers of genre tagged and the popularity of the song")
 
 plot(genre_size)
 ```
 
-Suprisingly, the hypothesis wasn't fully correct, some high popularity song in the Spotify dataset were tagged with only a few genres; but with the trend `geom_smooth()` showed us, for songs that gets tagged with more genres, the popularity of which will also be high. Worth noted that even it sounded like a casual relationship, but without further understanding of our dataset and variables, we can not conclude anything causal yet.
 
-
-
-
-## Question 3: Are there correlations or collinearity between variables?
+## Q3
 
 ```{r corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix", include=FALSE}
 spotify_cor <- cor(spotify[, -c(1:3, 5:11)], method = "pearson")
@@ -575,31 +495,89 @@ corrplot::corrplot(spotify_cor, type = "upper", order = "hclust",
          tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
 ```
 
-Observed from the correlogram, there exists some pairs of variables with high correlations: `energy:loudness` are positively correlated, `energy:acousticness` are negatively correlated; following by `danceability:valence` and `loudness:acousticness` which are slightly less correlated but the relationship are still significant. However, the relationship between variables are based on the scale of entire dataset, which there might be a big difference for the relationship of song characteristics between different genres. Thus two specific genres were also selected and the correlogram were below: 
+```{r corr-scatterplots, include=FALSE}
+spotify %>%
+  # Scatter plot of energy vs loudness
+  ggplot(aes(
+    x = energy,
+    y = loudness
+  )) +
+  geom_point(alpha = 0.1) +
+  # Display linear trend
+  geom_smooth(method = "lm", level = 0.99) +
+  # Add labels
+  labs(
+    x = "Energy",
+    y = "Loudness",
+    title = "Scatterplot of loudness and energy with linear trend for 99% confidence interval",
+    subtitle = "Increasing linear relationship between loudness and energy"
+  )
 
-```{r rnb-corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix for RnB songs", include=FALSE}
-rnb_cor <- cor(spotify[spotify$playlist_genre == "r&b", -c(1:3, 5:11)],
-               method = "pearson")
-
-corrplot::corrplot(rnb_cor, type = "upper", order = "hclust", 
-         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
+spotify %>%
+  # Scatter plot of acousticness vs energy
+  ggplot(aes(
+    x = acousticness,
+    y = energy
+  )) +
+  geom_point(alpha = 0.1) +
+  # Display linear trend
+  geom_smooth(method = "lm", level = 0.99) +
+  # Add labels
+  labs(
+    x = "Energy",
+    y = "Acousticness",
+    title = "Scatterplot of acousticness and energy with linear trend for 99% confidence interval",
+    subtitle = "Decreasing linear relationship between acousticness and energy"
+  )
 ```
 
-```{r pop-corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix for Pop songs", include=FALSE}
-pop_cor <- cor(spotify[spotify$playlist_genre == "pop", -c(1:3, 5:11)],
-               method = "pearson")
 
-corrplot::corrplot(pop_cor, type = "upper", order = "hclust", 
-         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
+
+# Methods:
+
+For assessing whether the marginal distribution of `playlist_genre` are the same for the top 100 popular songs, a Chi-squared test was performed.:
+$$\chi^2 = \sum^k_{j=1}\frac{(O_j - E_j)^2}{E_j}$$
+where our null hypothesis here is that the marginal distribution of different genre are the same.
+
+For assessing the relationship between `track_popularity`, a PCA analysis was conducted for reducing the dimensions of the characteristics of songs and trying to detect any signals between.
+
+# Results:
+
+## Question 1: What is the effect of quantitative variables explaining song characteristics on track popularity?
+
+As the ridgeline plots of popularity on different genre shows, the distribution is very similar across different genre, while every genre has a mode of low popularity songs. A threshold could be applied and separate the low popularity songs and other songs which could be looked into in the future studies.
+
+PCA analysis was performed on the quantitative variables (song characteristics), even though the scree plot indicated that up to PC3 is good enough for explaining the dimensions, the biplot and the scatterplot embedded `track_popularity` is too chaotic to observe any signs or signals between the variables. Logically, the popularity wouldn't be explained simply by a few predictors individually. Thus for the later questions, the analysis will be performed on a smaller scale such as by genre or for the top 100 popular songs.
+
+
+## Question 2: What characteristics do top 100 songs in terms of popularity have?
+
+```{r chisq-genre, echo=FALSE}
+chisq.test(table(spotify_100$playlist_genre))
 ```
 
-As the correlograms suggested, the pairs of variables/characteristic of the song that are correlated for different genres are very different. This is indicating the variables are representing different context under different genre.
+Based on both the graph output and the Chisq-test performed, the marginal distribution of different genre of top 100 songs are different. From the perspective of the bar graphs, as the 95\% CI indicated, since some confidence interval of genre didn't overlap, it is highly confident that the marginal distributions are also different; or from the p-value provided by Chisq-test, which is much smaller than our $\alpha = 0.05$, we will reject our null and say the marginal distributions are different. \
+
+For the contour maps for `pop`, `r&b`, and `latin` genres on danceability and speechiness, the distribution of which are alike. All maps have a mode around high danceability and low speechiness except some unique songs are deviating from the center of the mode. This is consistent with our findings in the contour maps on danceability and speechiness. \
+
+One interesting thing for the top 100 songs is that, within the Spotify dataset, it seemed like songs with higher popularity usually were tagged with more than one genre. The scatterplot of count of the unique track against the popularity of the song on the entire Spotify dataset were used to interpret the hypothesis made previously. \
+
+Surprisingly, the hypothesis wasn't fully correct, some high popularity song in the Spotify dataset were tagged with only a few genres; but with the trend `geom_smooth()` showed us, for songs that gets tagged with more genres, the popularity of which will also be high. Worth noted that even it sounded like a casual relationship, but without further understanding of our dataset and variables, we can not conclude anything causal yet.
+
+
+## Question 3: Are there correlations or collinearity between variables?
+
+Observed from the correlogram, there exists some pairs of variables with high correlations: `energy:loudness` are positively correlated, `energy:acousticness` are negatively correlated; following by `danceability:valence` and `loudness:acousticness` which are slightly less correlated but the relationship are still significant. However, the relationship between variables are based on the scale of entire dataset, which there might be a big difference for the relationship of song characteristics between different genres. 
+
+For `energy:loudness` and `energy:acousticness`, since the correlation of which are the strongest among other pairs, we plot a scatterplot with regression line of 99\% confidence interval embedded to observe the degree of correlation, and the results are straight-forward: both pairs have a very strong relationship between. Worth noting that for `energy:acousticness`, there seems to be mode for low energy songs which we might apply some variable transformation to help normalize the distribution of which and results in more accurate regression analysis.
 
 
 # Discussion:
 
-The PCA analysis performed on the entire Spotify dataset wasn't showing a clear relationship between the characteristics variables and the track popularity, thus the later studies went further into specific genres. A more complex regression analysis could be performed on the dataset to gain a further understanding of the explainability of characteristics of the songs on the track popularity. If the regression analysis went successful, we might be able to provide a service for creators and companies to understand the trend or the popularity of the songs thus they could create and upload better content and make profits. The scale would be more focused within each genre since a generalized "popular" song is hard to predict but for a specific genre, it would be more sensible and feasible.
+The PCA analysis performed on the entire Spotify dataset wasn't showing a clear relationship between the characteristics variables and the track popularity, thus the later studies went further into specific genres. A more complex regression analysis could be performed on the dataset to gain a further understanding of the explainability of characteristics of the songs on the track popularity as in a real-world situation, music producers and singers would be more focused on some specific genres instead of all of them (few genii do). This also related to the finding that some songs are tagged with multiple genre, which when analysis was performed within each genre, we don't have to worry about the effect of duplication. Some variables might need to be transformed since the distribution of which observed needs standardization. \
 
-For future plans, since patterns of characteristics were observed within genres, if user data could be integrated, a recommendation system would be a good next-step plan. The recommendation could be applied to the radio when a music app user is listening to the music, recommending songs that fit more of the user's taste; or it made life easier when new songs are uploaded by the creators, they got tagged into different genres automatically.
+If the regression analysis went successful, we might be able to provide a service for creators and companies to understand the trend or the popularity of the songs thus they could create and upload better content and make profits. The scale would be more focused within each genre since a generalized "popular" song is hard to predict but for a specific genre, it would be more sensible and feasible. \
 
-Also, a generalization of the regression analysis into genres would be done since it is more focused and in a real-world situation, music producers and singers would be more focused on some specific genres instead of all of them (few genii do). 
+Also, since patterns of characteristics were observed within genres, if user data could be integrated, a recommendation system would be a good next-step plan. The recommendation could be applied to the radio when a music app user is listening to the music, recommending songs that fit more of the user's taste; or it made life easier when new songs are uploaded by the creators, they got tagged into different genres automatically.
+
+ 
