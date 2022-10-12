@@ -468,16 +468,15 @@ spotify_100[spotify_100$playlist_genre == "latin",] %>%
 # Selection algorithm removes duplicating songs
 multi_genre <- spotify %>% 
   group_by(track_name, track_album_name, track_artist, track_popularity) %>% 
-  mutate(count = n()) %>% 
+  mutate(count = length(unique(playlist_genre))) %>% 
   ungroup() %>% 
   select(c(2, 4, 24)) %>% 
   distinct(track_name, .keep_all = TRUE)
 
 genre_size <- multi_genre %>% 
   ggplot(aes(x = count, y = track_popularity)) +
-  geom_smooth() +
   geom_point(alpha = .5) +
-  scale_x_continuous(limits=c(-.5, 10.5)) +
+  scale_x_continuous(limits=c(.5, 5.5)) +
   scale_y_continuous(limits=c(-5, 105)) +
   labs(x = "Number of tagged Genre", y = "Popularity",
        title = "Trend between numbers of genre tagged and the popularity of the song")
@@ -562,7 +561,7 @@ For the contour maps for `pop`, `r&b`, and `latin` genres on danceability and sp
 
 One interesting thing for the top 100 songs is that, within the Spotify dataset, it seemed like songs with higher popularity usually were tagged with more than one genre. The scatterplot of count of the unique track against the popularity of the song on the entire Spotify dataset were used to interpret the hypothesis made previously. \
 
-Surprisingly, the hypothesis wasn't fully correct, some high popularity song in the Spotify dataset were tagged with only a few genres; but with the trend `geom_smooth()` showed us, for songs that gets tagged with more genres, the popularity of which will also be high. Worth noted that even it sounded like a casual relationship, but without further understanding of our dataset and variables, we can not conclude anything causal yet.
+Surprisingly, the hypothesis wasn't fully correct, some high popularity song in the Spotify dataset were tagged with only a few genres; but for songs that gets tagged with more genres, the popularity of which will also be high. Worth noted that even it sounded like a casual relationship, but without further understanding of our dataset and variables, we can not conclude anything causal yet.
 
 
 ## Question 3: Are there correlations or collinearity between variables?
