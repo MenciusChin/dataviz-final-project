@@ -1,8 +1,9 @@
 ---
 title: "Spotify Data Analysis"
+date: "October 14, 2022"
 author: 
-- "Mencius Qin, Rachel Hyeon"
-- 'Style Guide: tidyverse style guide'
+- "Mencius Qin, Myung Kyung (Rachel) Hyeon"
+- 'Style Guide: tidyverse'
 output:
   pdf_document:
     toc: yes
@@ -11,7 +12,7 @@ output:
     toc: yes
     toc_float: yes
 editor_options:
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 ```{r setup, include=FALSE}
@@ -24,72 +25,286 @@ library(tidyverse)
 library(factoextra)
 library(ggridges)
 library(GGally)
+library(reshape2)
+library(kableExtra)
+library(pander)
 
 # Load data
 spotify <- read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-21/spotify_songs.csv') %>% na.omit()
 ```
 
-# Abstract:
+# Abstract
+
+Exploratory data analysis and preliminary statistical analysis on the Spotify Music dataset from the TidyTuesday project are conducted in the report in hopes of addressing three overarching questions exploring the relationships between different variables in the Spotify Music dataset. We make use of 9 different plots for our visualization: histograms for quantitative variables, scree plot, principle component analysis (PCA), ridgeline plot, stacked bar plot, marginal distribution plot, scatterplots with contour lines, correlogram, and scatterplots with linear regression lines. We conduct chi-squared test to test whether the proportion of genre appearing in top 100 songs are equal. We could not find a clear relationship between track popularity and other quantitative variables using all the songs in the dataset. We performed analysis on a smaller scale such as by genre or for the top 100 popular songs, and found that the marginal distribution of different genre of top 100 songs are different both from the marginal distribution graph with confidence interval calculated using Bonferroni correction, and from the results of our chi-squared test. We also found that most songs have danceability in between 0.5 to 0.75 regardless of genre and speechiness from 0 to 0.25. It seemed like the songs with higher popularity usually were tagged with more than one genre. The scatterplot of count of the unique track against the popularity of the song on the entire Spotify dataset were used to interpret the hypothesis made previously. Finally, we found that there were some pairs of variables with high correlations: `energy:loudness` are positively correlated, `energy:acousticness` are negatively correlated; following by `danceability:valence` and `loudness:acousticness` which are slightly less correlated but the relationship are still significant. A scatterplot with regression line of 99\% confidence interval showed a very strong linear relationship between `energy:loudness` and `energy:acousticness`. Since the PCA performed on the entire Spotify dataset wasn't showing a clear relationship between the characteristics variables and the track popularity, a more complex regression analysis could be performed on the dataset to gain a further understanding of the characteristics of the songs on the track popularity. Some variables might need to be transformed since the distribution of the variables are not normal. Since some trends were observed between genres and track popularity, a recommendation system would be a good next-step.
 
 
+# Introduction
 
-# Introduction:
+In this report, we will conduct exploratory data analysis and preliminary statistical analysis on the Spotify Music dataset from the TidyTuesday project. Throughout the report, we will be presenting data visualizations and analysis on three overarching questions. The first question is: what is the effect of quantitative variables explaining song characteristics on track popularity? We will look at the distribution of quantitative variables and track popularity, scree plot and principal component analysis to answer this question. The second question is: what characteristics do top 100 songs in terms of popularity have? We will present marginal distribution plots of genre and subgenre, a heat map for danceability and speechiness, and perform Chi-squared test to see if the proportions of genre for top 100 songs are equal. The third question is: are there correlations between variables? We will look at correlogram and scatter plots with linear regression lines to investigate which variables are correlated with each other.
 
+# Data
 
+Spotify Music dataset contains 23 variables and 32828 observations, containing tracks released from January 1, 1957 to January 29, 2020. Variable definitions are shown in Table 1.
 
-# Data:
+```{r vardef, echo=FALSE}
+var_def <- read.csv("VariableDefinitions.csv")
 
-```{r gg-pairs}
-spotify %>% ggpairs(columns = 12:23,
-                    mapping = aes(alpha = .5))
+var_def <- var_def %>% select(-class)
+pander::pander(var_def, caption = "Variable Definitions")
 ```
 
-```{r}
-spotify_cor <- cor(spotify[, -c(1:3, 5:11)], method = "pearson")
+
+```{r quant1, echo=FALSE, message=FALSE}
+spotify_quant1 <- spotify %>%
+  dplyr::select(c(track_popularity, danceability:duration_ms))
+
+# spotify_quant1 <- spotify_quant1[complete.cases(spotify_quant1), ]
 ```
 
-```{r, fig.height=7, fig.width=7, fig.cap="Correlation matrix"}
-corrplot::corrplot(spotify_cor, type = "upper", order = "hclust", 
-         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
+In order to answer our first question, we will first look at the distribution of quantitative variables and track popularity.
+
+```{r histograms, echo=FALSE, message=FALSE, fig.cap="Faceted histograms showing distribution of quantitative variables"}
+# Scott's rule
+get_scotts_binwidth <- function(x) {
+  # the standard deviation is
+  sigma <- sd(x)
+  # number of observations
+  n <- length(x)
+  # thus, the binwidth is
+  h <- (3.49 * sigma) / (n^(1 / 3))
+  return(h)
+}
+
+scotts_plot_tp <- spotify_quant1 %>%
+  ggplot(aes(x = track_popularity)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$track_popularity)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Track Popularity",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_dance <- spotify_quant1 %>%
+  ggplot(aes(x = danceability)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$danceability)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Danceability",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_energy <- spotify_quant1 %>%
+  ggplot(aes(x = energy)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$energy)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Energy",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_key <- spotify_quant1 %>%
+  ggplot(aes(x = key)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$key)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Key",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_loudness <- spotify_quant1 %>%
+  ggplot(aes(x = loudness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$loudness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Loudness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_mode <- spotify_quant1 %>%
+  ggplot(aes(x = mode)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$mode)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Mode",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_speechiness <- spotify_quant1 %>%
+  ggplot(aes(x = speechiness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$speechiness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Speechiness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_acousticness <- spotify_quant1 %>%
+  ggplot(aes(x = acousticness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$acousticness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Acousticness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_inst <- spotify_quant1 %>%
+  ggplot(aes(x = instrumentalness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$instrumentalness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Instrumentalness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_live <- spotify_quant1 %>%
+  ggplot(aes(x = liveness)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$liveness)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Liveness",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_valence <- spotify_quant1 %>%
+  ggplot(aes(x = valence)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$valence)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Valence",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_tempo <- spotify_quant1 %>%
+  ggplot(aes(x = tempo)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$tempo)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Tempo",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+scotts_plot_duration <- spotify_quant1 %>%
+  ggplot(aes(x = duration_ms)) +
+  # Make histogram with specified binwidth using Scott's rule
+  geom_histogram(
+    binwidth = get_scotts_binwidth(spotify_quant1$duration_ms)
+  ) +
+  scale_x_continuous() +
+  # Add labels
+  labs(
+    x = "Duration in ms",
+    y = "Count",
+    title = "Histogram",
+    subtitle = "Binwidth specified by Scott's rule"
+  )
+
+library(patchwork)
+scotts_plot_tp
+scotts_plot_dance + scotts_plot_energy + scotts_plot_key + scotts_plot_loudness
+scotts_plot_mode + scotts_plot_speechiness + scotts_plot_acousticness + scotts_plot_inst
+scotts_plot_live + scotts_plot_valence + scotts_plot_tempo + scotts_plot_duration
 ```
 
-As we see in the correlation matrix, the `energy:loudness` pair and `energy:acousticness` pair seems to be correlated, following by the `loudness:acousticness` pair and `danceability:valence` pair.
 
-```{r genre-popularity}
-# Graph code
-genre_ridgeline <- spotify %>%
-  ggplot(aes(x = track_popularity, 
-             y = playlist_genre,
-             height = stat(density),
-             fill = playlist_genre)) +
-  geom_density_ridges(stat = "density") +
-  theme_bw() +
-  labs(x = "Popularity of the Song", y = "Genre",
-       title = "Ridgeline plot of Song Popularity of different Genre
-               (All Genre contains a mode of low popularity)")
+From the histograms, it looks like `key` and `mode` are actually categorical variables. The variables `danceability`, `energy`, and `loudness` looks left-skewed, and `liveness`, `duration_ms`, `speechiness`, `acousticness`, and `instrumentalness` looks right-skewed.
 
-plot(genre_ridgeline)
-```
-
-```{r pca-analysis}
-spotify_quant <- spotify[, c(4, 12:13, 15, 17:23)]
+```{r pca-analysis, echo=FALSE}
+# Omit duplicating genres
+spotify_quant <- spotify %>% 
+  dplyr::select(c(4, 12:13, 15, 17:23))
 
 spotify_pca <- prcomp(dplyr::select(spotify_quant, danceability:duration_ms),
                      center = TRUE, scale. = TRUE)
-summary(spotify_pca)
 ```
 
-```{r scree-plot}
+The scree plot and principle component analysis will help us determine what quantitative variables are related to track popularity, which will help us answer our first question. The scree plot shows that the first three dimensions explain about 48.2% of total variation in the data.
+
+```{r scree-plot, echo=FALSE, fig.cap="Scree plot"}
 fviz_eig(spotify_pca, addlabels = TRUE, ncp = 10) +
   geom_hline(yintercept = 100 * (1 / ncol(spotify_pca$x)), 
              linetype = "dashed", color = "red")
 ```
 
-```{r pop-pca}
+The PCA plot does not show a clear relationship between Track Popularity and the two dimensions.
+
+```{r pop-pca, echo=FALSE, fig.cap="PCA plot for PC1 and PC2"}
 spotify_pc_matrix <- spotify_pca$x
 
 pop_pca_df <- spotify %>% 
-  mutate(pc1 = spotify_pc_matrix[,1], pc2 = spotify_pc_matrix[,2])
+  mutate(pc1 = spotify_pc_matrix[,1], pc2 = spotify_pc_matrix[,2],
+         pc3 = spotify_pc_matrix[,3], pc4 = spotify_pc_matrix[,4])
 pop_pca <- pop_pca_df %>%
   ggplot(aes(x = pc1, y = pc2)) +
   geom_point(aes(color = track_popularity), alpha = 0.5) +
@@ -100,9 +315,11 @@ pop_pca <- pop_pca_df %>%
 plot(pop_pca)
 ```
 
-```{r pop-biplot}
+A biplot of the first and second principal components was made to make principle components more interpretable. The biplot looks too chaotic to observe any signs or signals between the variables.
+
+```{r pop-biplot, echo=FALSE, fig.cap="Biplot for PC1 and PC2"}
 fviz_pca_biplot(spotify_pca,
-                # Plot PC1 and PC3
+                # Plot PC1 and PC2
                 axes = c(1, 2), label = "var",
                 # Change the alpha for the observations - 
                 # which is represented by ind
@@ -119,43 +336,283 @@ fviz_pca_biplot(spotify_pca,
    theme(legend.position = "bottom")
 ```
 
-```{r pop-heat}
-pop_heat <- spotify %>% 
-  ggplot(aes(x = loudness, y = instrumentalness)) +
-  stat_density2d(geom = "tile", contour = FALSE) +
-  geom_point(aes(color = track_popularity), alpha = .2) + 
-  scale_color_gradient(low = "lightblue", high = "orange") +
-  theme_bw() + 
-  labs(title = "Heat Map")
 
-plot(pop_heat)
+Ridgeline plot of track popularity by genre will show us whether different genres have different distribution of track popularity. We see that all genres contain a mode of low track popularity, and a second mode with higher track popularity. It seems like EDM is the least popular genre, and Pop is the most popular genre.
+
+```{r genre-popularity, echo=FALSE, fig.cap="Ridgeline plot of track popularity by genre"}
+# Graph code
+genre_ridgeline <- spotify %>%
+  ggplot(aes(x = track_popularity, 
+             y = playlist_genre,
+             height = stat(density),
+             fill = playlist_genre)) +
+  geom_density_ridges(stat = "density") +
+  theme_bw() +
+  labs(x = "Popularity of the Song", y = "Genre",
+       title = "Ridgeline plot of Song Popularity of different Genre
+               (Every Genre contains a mode of low popularity)")
+
+plot(genre_ridgeline)
 ```
 
-```{r spotify-100}
-spotify_100 <- spotify %>% 
+```{r spotify-100, echo=FALSE}
+# This shows the top-100 songs including duplication
+track_100 <- spotify %>% 
   arrange(-track_popularity) %>% 
-  top_n(150, track_popularity)
+  distinct(track_name, .keep_all = TRUE) %>% 
+  top_n(100, track_popularity) %>% 
+  dplyr::select(track_name)
+
+spotify_100 <- spotify %>% 
+  arrange(-track_popularity)
+spotify_100 <- spotify_100[c(1:531),]
 ```
 
-```{r genre-100}
+
+In order to answer our second question, stacked bar plot displaying which genres have the highest counts in top 100 songs conditioned by subgenre was plotted. It looks like Latin, R&B, and Pop are the three most popular genres in the top 100 songs.
+
+```{r genre-100, echo=FALSE, fig.cap="Stacked bar plot of genre conditioned on subgenre"}
 bar_100 <- spotify_100 %>% 
   ggplot(aes(x = playlist_genre, fill = playlist_subgenre)) +
-  geom_bar(position = "dodge")
+  geom_bar() +
+  labs(x = "Genre", y = "Count", fill = "Subgenre")
 
 plot(bar_100)
 ```
 
+For top 100 songs, we will plot a bar graph displaying marginal distribution of genre with confidence intervals. We will use Bonferroni correction to calculate the confidence intervals. We will also perform a chi-squared test to see if the proportions of genre are equal for top 100 songs.
 
+```{r marginal-dist-ci, echo=FALSE, fig.cap="Marginal distribution of genre with CI"}
+# Calculate the Z value using Bonferroni correction
+k <- 120
+bonferroni_alpha <- 0.05 / k
+z <- qnorm(1 - bonferroni_alpha / 2)
+
+spotify_100 %>%
+  group_by(playlist_genre) %>%
+  summarize(count = n(), .groups = "drop") %>%
+  # Calculate proportions, standard error, lower and
+  # upper bounds of confidence interval
+  mutate(
+    total = sum(count),
+    prop = count / total,
+    se = sqrt(prop * (1 - prop) / total),
+    lower = prop - z * se,
+    upper = prop + z * se
+  ) %>%
+  ggplot(aes(x = fct_reorder(playlist_genre, prop))) +
+  geom_bar(aes(y = prop),
+    stat = "identity"
+  ) +
+  # Add confidence intervals and make them a different color
+  geom_errorbar(aes(
+    ymin = pmax(lower, 0),
+    ymax = pmin(upper, 1),
+    color = "red"
+  )) +
+  # Add labels
+  labs(
+    x = "Genre",
+    y = "Proportion",
+    title = "Marginal Distribution of Genre for Top 100 Songs on Spotify"
+  ) +
+  theme(legend.position = "")
+```
+
+
+Rock and r&b, pop, and latin do not overlap. This means that the proportion of rock and r&b, rock and pop, and rock and latin are different. Other proportions might be the same. We will perform the chi-squared test to see if the proportions of genre in top 100 songs are equal. $\chi^2$ value was found to be 203.54, degree of freedom was 5, and the p-value was less than 0.05. The result of the chi-squared test will be interpreted in later section.
+
+```{r chisq-genre, include=FALSE}
+chisq.test(table(spotify_100$playlist_genre))
+```
+
+
+From the variable description, it seems like danceability and speechiness are the two factors that differ between the genres. We will plot a scatterplot with contour lines for danceability and speechiness. There is one mode in the graph where most of the data points are located, which suggests that most songs have danceability in between 0.5 to 0.75 regardless of genre and speechiness from 0 to 0.25. There are some rap songs with high speechiness from 0.5 to close to 1.
+
+
+```{r contour, echo=FALSE, fig.cap="Scatterplot with contour lines for danceability and speechiness"}
+spotify %>%
+  ggplot(aes(x = danceability, y = speechiness)) +
+  geom_point(alpha = 0.25, aes(color = playlist_genre)) +
+  geom_density2d(h = c(80, 80)) +
+  scale_x_continuous(limits=c(0, 1)) +
+  scale_y_continuous(limits=c(0, 1)) +
+  coord_fixed() +
+  theme_bw() +
+  labs(
+    x = "Danceability",
+    y = "Speechiness",
+    title = "Scatterplot of Danceability and \n Speechiness with Contour Lines",
+    subtitle = "Genre separated by shape"
+  )
+```
+
+
+Looking at the scatterplot with contour lines for three most popular genres for top 100 songs (R&B, Pop, Latin), we see that most popular songs have danceability between 0.5 to 0.9 and low speechiness.
+
+```{r rnb-100-heat, echo=FALSE, fig.cap="Scatterplot with contour lines for danceability and speechiness for R&B"}
+spotify_100[spotify_100$playlist_genre == "r&b",] %>%
+  ggplot(aes(x = danceability, y = speechiness)) +
+  geom_point(alpha = 0.25) +
+  geom_density2d() +
+  scale_x_continuous(limits=c(0, 1)) +
+  scale_y_continuous(limits=c(0, 1)) +
+  coord_fixed() +
+  theme_bw() +
+  labs(
+    x = "Danceability",
+    y = "Speechiness",
+    title = "Scatterplot of Danceability and \n Speechiness with Contour Lines for R&B",
+    subtitle = "Genre separated by shape"
+  )
+```
+
+```{r pop-100-heat, echo=FALSE, fig.cap="Scatterplot with contour lines for danceability and speechiness for pop"}
+spotify_100[spotify_100$playlist_genre == "pop",] %>%
+  ggplot(aes(x = danceability, y = speechiness)) +
+  geom_point(alpha = 0.25) +
+  geom_density2d() +
+  coord_fixed() +
+  theme_bw() +
+  labs(
+    x = "Danceability",
+    y = "Speechiness",
+    title = "Scatterplot of Danceability and \n Speechiness with Contour Lines for Pop",
+    subtitle = "Genre separated by shape"
+  )
+```
+
+```{r latin-100-heat, echo=FALSE, fig.cap="Scatterplot with contour lines for danceability and speechiness for latin"}
+spotify_100[spotify_100$playlist_genre == "latin",] %>%
+  ggplot(aes(x = danceability, y = speechiness)) +
+  geom_point(alpha = 0.25) +
+  geom_density2d() +
+  coord_fixed() +
+  theme_bw() +
+  labs(
+    x = "Danceability",
+    y = "Speechiness",
+    title = "Scatterplot of Danceability and \n Speechiness with Contour Lines for Latin",
+    subtitle = "Genre separated by shape"
+  )
+```
+
+While examining the data, we found that some songs get tagged into multiple genres so there are duplicates in the dataset. The relationship between how many genre a song has and it’s popularity was graphed using a scatterplot. The scatterplot shows that track popularity tends to increase as the song gets tagged into multiple genre.
+
+``` {r multi-genre, echo=FALSE, fig.cap="Scatterplot showing number of genre tagged and the popularity of the song", warning=FALSE, message=FALSE}
+# Selection algorithm removes duplicating songs
+multi_genre <- spotify %>% 
+  group_by(track_name, track_album_name, track_artist, track_popularity) %>% 
+  mutate(count = length(unique(playlist_genre))) %>% 
+  ungroup() %>% 
+  dplyr::select(c(2, 4, 24)) %>% 
+  distinct(track_name, .keep_all = TRUE)
+
+genre_size <- multi_genre %>% 
+  ggplot(aes(x = count, y = track_popularity)) +
+  geom_point(alpha = .5) +
+  scale_x_continuous(limits=c(.5, 5.5)) +
+  scale_y_continuous(limits=c(-5, 105)) +
+  geom_smooth(method = "lm", level = 0.99) +
+  labs(x = "Number of tagged genre", y = "Popularity",
+       title = "Trend between numbers of genre tagged and the popularity of the song")
+
+plot(genre_size)
+```
+
+Finally, we are interested in answering our third question which is finding out if there are correlations between variables.
+
+Correlogram will show us which variables are correlated with each other. It looks like `energy` and `loudness` have strongest positive correlation and and `energy` and `acousticness` have the strongest negative correlation.
+
+```{r corr, fig.height=7, fig.width=7, fig.cap="Correlation matrix", echo=FALSE}
+spotify_cor <- cor(spotify[, -c(1:3, 5:11)], method = "pearson")
+
+corrplot::corrplot(spotify_cor, type = "upper", order = "hclust", 
+         tl.col = "black", tl.srt = 45, diag = F, tl.cex = 0.5)
+```
+
+Finally, we will look at the scatterplots with linear regression lines for `energy` and `loudness` and `energy` and `acousticness` because they are strongly correlated variables. It looks like the data points follow a linear trend for both pairs.
+
+```{r corr-scatterplots, echo=FALSE, fig.cap="Scatterplots with linear regression for highly correlated variables", warning=FALSE, message=FALSE}
+spotify %>%
+  # Scatter plot of energy vs loudness
+  ggplot(aes(
+    x = energy,
+    y = loudness
+  )) +
+  geom_point(alpha = 0.1) +
+  # Display linear trend
+  geom_smooth(method = "lm", level = 0.99) +
+  # Add labels
+  labs(
+    x = "Energy",
+    y = "Loudness",
+    title = "Scatterplot of loudness and energy with linear trend for 99% confidence interval",
+    subtitle = "Increasing linear relationship between loudness and energy"
+  )
+
+spotify %>%
+  # Scatter plot of acousticness vs energy
+  ggplot(aes(
+    x = acousticness,
+    y = energy
+  )) +
+  geom_point(alpha = 0.1) +
+  # Display linear trend
+  geom_smooth(method = "lm", level = 0.99) +
+  # Add labels
+  labs(
+    x = "Energy",
+    y = "Acousticness",
+    title = "Scatterplot of acousticness and energy with linear trend for 99% confidence interval",
+    subtitle = "Decreasing linear relationship between acousticness and energy"
+  )
+```
 
 
 # Methods:
 
+When drawing the histograms, we used bin width chosen by Scott's rule to select adequate bin width for each of the quantitative variables. Also, we used Bonferroni correction for calculating confidence intervals for marginal distribution of genre, to ensure that we counteract the multiple testing problem.
+
+For assessing the relationship between `track_popularity`, PCA analysis was conducted for reducing the dimensions of the characteristics of songs and trying to detect any signals between.
+
+For assessing whether the marginal distribution of `playlist_genre` are the same for the top 100 popular songs, a Chi-squared test was performed where our null hypothesis here is that the marginal distribution of different genre are the same.
+
+# Results
+
+## Question 1: What is the effect of quantitative variables explaining song characteristics on track popularity?
+
+From the histograms, the variables `danceability`, `energy`, and `loudness` looks left-skewed, and `liveness`, `duration_ms`, `speechiness`, `acousticness`, and `instrumentalness` looks right-skewed. The variable `track_popularity` has a mode at 0, meaning that most songs in our dataset has a track popularity of 0.
+
+As the ridgeline plots of popularity on different genre shows, the distribution is very similar across different genre, while every genre has a mode of low popularity songs. A threshold could be applied and separate the low popularity songs and other songs which could be looked into in the future studies.
+
+PCA analysis was performed on the quantitative variables (song characteristics), even though the scree plot indicated that up to PC3 is good enough for explaining the dimensions, the biplot and the scatterplot embedded `track_popularity` is too chaotic to observe any signs or signals between the variables. Logically, the popularity wouldn't be explained simply by a few predictors individually. Thus for the later questions, the analysis will be performed on a smaller scale such as by genre or for the top 100 popular songs.
 
 
-# Results:
+## Question 2: What characteristics do top 100 songs in terms of popularity have?
+
+Stacked bar plot displaying which genres have the highest counts in top 100 songs conditioned by subgenre shows that latin, R&B, and pop are the three most popular genres in the top 100 songs. Pop and latin have the most subgenres at 4 subgenres each. The bar graph displaying marginal distribution of genre with confidence intervals found using Bonferroni correction shows that the confidence intervals for rock and r&b, pop, and latin does not overlap. This means that the proportion of rock and r&b, rock and pop, and rock and latin are different. Based on both the graph output and the chi-squared test performed, the marginal distribution of different genre of top 100 songs are different. From the perspective of the bar graphs, as the 95\% CI indicated, since some confidence interval of genre didn't overlap, it is highly confident that the marginal distributions are also different; or from the p-value provided by chi-squared test, which is much smaller than our $\alpha = 0.05$, we will reject our null hypothesis and say the marginal distributions are different.
+
+The scatterplot with contour lines for danceability and speechiness shows one mode in the graph where most of the data points are located, which suggests that most songs have danceability in between 0.5 to 0.75 regardless of genre and speechiness from 0 to 0.25. There are some rap songs with high speechiness from 0.5 to close to 1, which suggests that rap is characterized by higher speechiness values than other genres. For the contour maps for `pop`, `r&b`, and `latin` genres on danceability and speechiness, the distribution of which are alike. All maps have a mode around high danceability and low speechiness except some unique songs are deviating from the center of the mode. This is consistent with our findings in the contour maps on danceability and speechiness.
+
+One interesting thing for the top 100 songs is that, within the Spotify dataset, it seemed like the songs with higher popularity usually were tagged with more than one genre. The scatterplot of count of the unique track against the popularity of the song on the entire Spotify dataset were used to interpret the hypothesis made previously.
+
+Surprisingly, the hypothesis wasn't fully correct, some high popularity song in the Spotify dataset were tagged with only a few genres; but for songs that gets tagged with more genres, the popularity of which will also be high. Worth noted that even it sounded like a casual relationship, but without further understanding of our dataset and variables, we can not conclude anything causal yet.
 
 
+## Question 3: Are there correlations or collinearity between variables?
 
-# Discussion:
+Observed from the correlogram, there exists some pairs of variables with high correlations: `energy:loudness` are positively correlated, `energy:acousticness` are negatively correlated; following by `danceability:valence` and `loudness:acousticness` which are slightly less correlated but the relationship are still significant. However, the relationship between variables are based on the scale of entire dataset, which there might be a big difference for the relationship of song characteristics between different genres. 
+
+For `energy:loudness` and `energy:acousticness`, since the correlation of which are the strongest among other pairs, we plot a scatterplot with regression line of 99\% confidence interval embedded to observe the degree of correlation, and the results are straight-forward: both pairs have a very strong relationship. It is worth noting that for `energy:acousticness`, there seems to be mode for low energy songs which we might apply some variable transformation to help normalize the distribution of which and results in more accurate regression analysis.
 
 
+# Discussion
+
+The PCA analysis performed on the entire Spotify dataset wasn't showing a clear relationship between the characteristics variables and the track popularity, thus the later studies went further into specific genres. A more complex regression analysis could be performed on the dataset to gain a further understanding of the explainability of characteristics of the songs on the track popularity as in a real-world situation, music producers and singers would be more focused on some specific genres instead of all of them (few genres do). This also related to the finding that some songs are tagged with multiple genre, which when analysis was performed within each genre, we don't have to worry about the effect of duplication. Some variables might need to be transformed since the distribution of which observed needs standardization.
+
+If the regression analysis went successful, we might be able to provide a service for creators and companies to understand the trend or the popularity of the songs thus they could create and upload better content and make profits. The scale would be more focused within each genre since a generalized "popular" song is hard to predict but for a specific genre, it would be more sensible and feasible.
+
+Also, since patterns of characteristics were observed within genres, if user data could be integrated, a recommendation system would be a good next-step plan. The recommendation could be applied to the radio when a music app user is listening to the music, recommending songs that fit more of the user's taste; or it made life easier when new songs are uploaded by the creators, they got tagged into different genres automatically.
+
+ 
